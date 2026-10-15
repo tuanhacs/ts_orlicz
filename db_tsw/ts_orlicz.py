@@ -459,18 +459,32 @@ class Orlicz_TSConcurrentLines:
         num_trees = theta.shape[0]
         num_lines = theta.shape[1]
         
-        # Translate by intercept (root point)
-        input_translated = (input - intercept)  # [T, B, D]
+        # Avoid expanding input - intercept to [num_trees, N, d].
+        intercept_flat = intercept.squeeze(1)
         
         # Project onto lines: axis_coordinate = theta · (input - intercept)
-        axis_coordinate = torch.matmul(theta, input_translated.transpose(1, 2))
-        input_projected_translated = torch.einsum('tlb,tld->tlbd', axis_coordinate, theta)
+        axis_coordinate = (
+            torch.matmul(theta, input.transpose(0, 1))
+            - torch.sum(theta * intercept_flat[:, None, :], dim=-1, keepdim=True)
+        )
         
         # Compute mass division
         if self.mass_division == 'uniform':
             mass_input = torch.ones((num_trees, num_lines, N), device=self.device) / (N * num_lines)
         elif self.mass_division == 'distance_based':
-            dist = torch.norm(input_projected_translated - input_translated.unsqueeze(1), dim=-1)
+            # Evaluate the residual norm without materializing [T, L, N, d].
+            # At the DDGAN defaults, that expanded tensor is about 29 GiB.
+            input_norm_sq = torch.sum(input.square(), dim=-1)[None, :]
+            intercept_norm_sq = torch.sum(intercept_flat.square(), dim=-1)[:, None]
+            input_intercept_dot = torch.matmul(intercept_flat, input.transpose(0, 1))
+            translated_norm_sq = input_norm_sq + intercept_norm_sq - 2.0 * input_intercept_dot
+
+            theta_norm_sq = torch.sum(theta.square(), dim=-1, keepdim=True)
+            dist_sq = (
+                translated_norm_sq[:, None, :]
+                + axis_coordinate.square() * (theta_norm_sq - 2.0)
+            )
+            dist = torch.sqrt(dist_sq.clamp_min(0.0))
             weight = -self.delta * dist
             mass_input = torch.softmax(weight, dim=-2) / N
         

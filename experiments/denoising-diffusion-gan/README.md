@@ -156,9 +156,9 @@ run_one_experiment() {
 
 # config 1
 run_one_experiment \
-    "ddgan_cifar10_orlicz_exp" \
-    "orlicz.log" \
-    "orlicz_test.log" \
+    "ddgan_cifar10_orlicz_exp_squared" \
+    "orlicz_exp_squared.log" \
+    "orlicz_exp_squared_test.log" \
     "gaussian_raw" \
     "exp_squared"
 
@@ -170,9 +170,9 @@ fi
 
 # config 2
 run_one_experiment \
-    "ddgan_cifar10_orlicz_power" \
-    "orlicz.log" \
-    "orlicz_test.log" \
+    "ddgan_cifar10_orlicz_exp" \
+    "orlicz_exp.log" \
+    "orlicz_exp_test.log" \
     "gaussian_raw" \
     "exp"
 
