@@ -111,7 +111,7 @@ run_one_experiment() {
     echo "=== START TRAIN: $EXP_NAME ==="
     date
 
-    env PYTHONPATH=../.. CUDA_VISIBLE_DEVICES=4,5 \
+    env PYTHONPATH=../.. CUDA_VISIBLE_DEVICES=0,3 \
     torchrun --standalone --nproc_per_node=2 train_ddgan.py \
     --dataset cifar10 --exp "$EXP_NAME" \
     --num_channels 3 --num_channels_dae 128 --num_timesteps 4 \
@@ -121,8 +121,8 @@ run_one_experiment() {
     --r1_gamma 0.02 --lr_d 1.25e-4 --lr_g 1.6e-4 --n_function "$N_FUNCTION" \
     --lazy_reg 15 --loss ts_orlicz --T 2500 --L 4 \
     --twd_delta 10 --twd_std 0.1 --twd_gen_mode "$GEN_MODE" --orlicz_p 2 \
-    --ch_mult 1 2 2 2 --p_agg 2 --save_content \
-    --wandb_project_name "ts-orlicz" --wandb_entity "" \
+    --ch_mult 1 2 2 2 --p_agg 2 --save_content --seed 0 \
+    --wandb_project_name "ts-orlicz" --wandb_entity "tuanhaict-" \
     --save_ckpt_every 25 > "$TRAIN_LOG" 2>&1
 
     TRAIN_EXIT=$?
@@ -137,7 +137,7 @@ run_one_experiment() {
     echo "=== START TEST: $EXP_NAME ==="
     date
 
-    env PYTHONPATH=../.. CUDA_VISIBLE_DEVICES=4 \
+    env PYTHONPATH=../.. CUDA_VISIBLE_DEVICES=0 \
     python test_ddgan.py --dataset cifar10 \
     --exp "$EXP_NAME" \
     --num_channels 3 --num_channels_dae 128 --num_timesteps 4 \
@@ -160,7 +160,7 @@ run_one_experiment \
     "orlicz.log" \
     "orlicz_test.log" \
     "gaussian_raw" \
-    "exp"
+    "exp_squared"
 
 EXIT_CODE=$?
 if [ $EXIT_CODE -ne 0 ]; then
@@ -174,7 +174,7 @@ run_one_experiment \
     "orlicz.log" \
     "orlicz_test.log" \
     "gaussian_raw" \
-    "power"
+    "exp"
 
 EXIT_CODE=$?
 if [ $EXIT_CODE -ne 0 ]; then
