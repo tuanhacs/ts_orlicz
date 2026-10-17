@@ -441,6 +441,8 @@ def train(rank, args):
             device=device,
             n_function=args.n_function,
             p_agg=args.p_agg,
+            i_max=6,
+            optimization_method="newton"
         )
     start_time = time.time()
     for epoch in range(init_epoch, args.num_epoch+1):
