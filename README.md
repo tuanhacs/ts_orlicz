@@ -91,11 +91,11 @@ PYTHONPATH=../.. WANDB_MODE=offline CUDA_VISIBLE_DEVICES=0,1 \
   --embedding_type positional --use_ema --ema_decay 0.9999 \
   --r1_gamma 0.02 --lr_d 1.25e-4 --lr_g 1.6e-4 --lazy_reg 15 \
   --T 2500 --L 4 --twd_delta 10 --twd_std 0.1 \
-  --twd_gen_mode gaussian_raw --n_function exp --p_agg 2 \
+  --twd_gen_mode gaussian_raw --n_function exp --p_agg 2 --closed_form \
   --ch_mult 1 2 2 2 --save_content --save_ckpt_every 25
 ```
 
-Set `--n_function power --orlicz_p 2` for the quadratic variant, or `--n_function exp_squared` for the other exponential variant. Training downloads CIFAR-10 and writes checkpoints under `saved_info/dd_gan/cifar10/` relative to the diffusion directory. The diffusion README also documents FID evaluation with `test_ddgan.py`.
+With `--closed_form`, `exp` and `exp_squared` use simple Taylor approximations of the optimized distance. Omit the flag to optimize the original exponential N-function with the root solver. Set `--n_function power --orlicz_p 2` for the exact quadratic variant. Training downloads CIFAR-10 and writes checkpoints under `saved_info/dd_gan/cifar10/` relative to the diffusion directory. The diffusion README also documents FID evaluation with `test_ddgan.py`.
 
 ## Point-cloud gradient flow
 

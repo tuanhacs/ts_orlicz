@@ -442,7 +442,8 @@ def train(rank, args):
             n_function=args.n_function,
             p_agg=args.p_agg,
             i_max=6,
-            optimization_method="newton"
+            optimization_method="bounded",
+            closed_form=args.closed_form,
         )
     start_time = time.time()
     for epoch in range(init_epoch, args.num_epoch+1):
@@ -775,6 +776,11 @@ if __name__ == '__main__':
                         help='wandb run name, if not specified, will be set to the current experiment name')
     parser.add_argument('--n_function', type=str, default='power')
     parser.add_argument('--p_agg', type=float, default=2)
+    parser.add_argument(
+        '--closed_form',
+        action='store_true',
+        help='Use simple Taylor closed-form approximations for exp and exp_squared TS-Orlicz',
+    )
 
    
     args = parser.parse_args()

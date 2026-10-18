@@ -12,7 +12,8 @@ class Orlicz_TSConcurrentLines:
     
     def __init__(self, n_function='exp', p=2, delta=2, 
                  mass_division='distance_based', device="cuda",
-                 optimization_method='bounded', p_agg=2, i_max=6):
+                 optimization_method='bounded', p_agg=2, i_max=6,
+                 closed_form=False):
         """
         Args:
             n_function: Type of N-function. Options:
@@ -26,6 +27,7 @@ class Orlicz_TSConcurrentLines:
             mass_division: how to divide mass, 'uniform' or 'distance_based'
             device: device to run the code
             optimization_method: 'bounded' or 'minimize_scalar' for univariate optimization
+            closed_form: use a simple Taylor closed-form approximation for exp or exp_squared
         """
         self.device = device
         self.p = p
@@ -35,6 +37,7 @@ class Orlicz_TSConcurrentLines:
         self.p_agg = p_agg
         self.print_tail_at_kstar = True  # Set to True to print tail diagnostics at k*
         self.i_max = i_max
+        self.closed_form = closed_form
         assert self.mass_division in ['uniform', 'distance_based'], \
             "Invalid mass division. Must be one of 'uniform', 'distance_based'"
         
@@ -63,6 +66,13 @@ class Orlicz_TSConcurrentLines:
         # For power N-function with the specific coefficient, we have closed form
         self.use_closed_form = (isinstance(self.n_function, PowerNFunction) and 
                                  self.n_function.coeff == ((p-1)**(p-1))/(p**p))
+
+        if self.closed_form and not isinstance(
+            self.n_function, (PowerNFunction, ExpNFunction, ExpSquaredNFunction)
+        ):
+            raise ValueError(
+                "closed_form is supported only for power, exp, and exp_squared"
+            )
     
     def __call__(self, X, Y, theta, intercept):
         """
@@ -116,6 +126,8 @@ class Orlicz_TSConcurrentLines:
         # Check for closed form solution (Proposition 4.4)
         if self.use_closed_form:
             return self.compute_closed_form(h_edges, w_edges)
+        elif self.closed_form:
+            return self.compute_taylor_closed_form(h_edges, w_edges)
         else:
             dist = self.compute_via_original_root(h_edges, w_edges, max_iter=self.i_max)
 
@@ -186,6 +198,40 @@ class Orlicz_TSConcurrentLines:
         distances_per_tree = torch.pow(weighted_sum_per_tree, 1 / p)
 
         return (distances_per_tree.pow(self.p_agg).mean()).pow(1 / self.p_agg)
+
+    def compute_taylor_closed_form(self, h_edges, w_edges):
+        """Simple Taylor approximations of the optimized tree distance."""
+        reduce_dims = [-1, -2]
+        A2 = torch.sum(w_edges * h_edges.square(), dim=reduce_dims)
+        eps = torch.finfo(A2.dtype).eps
+        valid = A2 > eps
+        safe_A2 = A2.clamp_min(eps)
+
+        if isinstance(self.n_function, ExpSquaredNFunction):
+            A4 = torch.sum(w_edges * h_edges.pow(4), dim=reduce_dims)
+            distances_per_tree = (
+                2.0 * torch.sqrt(safe_A2)
+                + A4 / (2.0 * safe_A2.pow(1.5))
+            )
+
+        elif isinstance(self.n_function, ExpNFunction):
+            A3 = torch.sum(w_edges * h_edges.pow(3), dim=reduce_dims)
+            distances_per_tree = (
+                torch.sqrt(2.0 * safe_A2)
+                + A3 / (3.0 * safe_A2)
+            )
+
+        else:
+            raise ValueError(
+                "Taylor closed form is supported only for exp and exp_squared"
+            )
+
+        distances_per_tree = torch.where(
+            valid,
+            distances_per_tree,
+            torch.zeros_like(distances_per_tree),
+        )
+        return (distances_per_tree.pow(self.p_agg).mean()).pow(1.0 / self.p_agg)
 
     def compute_via_scipy_optimization(self, h_edges, w_edges, x_window=30.0):
         """
