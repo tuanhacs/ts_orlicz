@@ -446,6 +446,8 @@ def train(rank, args):
             closed_form=args.closed_form,
             legacy_input_project=args.legacy_input_project,
         )
+        if args.closed_form:
+            TS_Orlicz_obj = torch.compile(TS_Orlicz_obj)
     start_time = time.time()
     for epoch in range(init_epoch, args.num_epoch+1):
         if rank == 0:
