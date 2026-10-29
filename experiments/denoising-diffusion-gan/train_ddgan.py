@@ -444,6 +444,7 @@ def train(rank, args):
             i_max=6,
             optimization_method="bounded",
             closed_form=args.closed_form,
+            legacy_input_project=args.legacy_input_project,
         )
     start_time = time.time()
     for epoch in range(init_epoch, args.num_epoch+1):
@@ -780,6 +781,11 @@ if __name__ == '__main__':
         '--closed_form',
         action='store_true',
         help='Use simple Taylor closed-form approximations for exp and exp_squared TS-Orlicz',
+    )
+    parser.add_argument(
+        '--legacy_input_project',
+        action='store_true',
+        help='Use the original input projection implementation for TS-Orlicz',
     )
 
    

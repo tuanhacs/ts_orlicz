@@ -13,7 +13,7 @@ class Orlicz_TSConcurrentLines:
     def __init__(self, n_function='exp', p=2, delta=2, 
                  mass_division='distance_based', device="cuda",
                  optimization_method='bounded', p_agg=2, i_max=6,
-                 closed_form=False):
+                 closed_form=False, legacy_input_project=False):
         """
         Args:
             n_function: Type of N-function. Options:
@@ -28,6 +28,7 @@ class Orlicz_TSConcurrentLines:
             device: device to run the code
             optimization_method: 'bounded' or 'minimize_scalar' for univariate optimization
             closed_form: use a simple Taylor closed-form approximation for exp or exp_squared
+            legacy_input_project: materialize the original projected inputs when computing masses
         """
         self.device = device
         self.p = p
@@ -38,6 +39,7 @@ class Orlicz_TSConcurrentLines:
         self.print_tail_at_kstar = True  # Set to True to print tail diagnostics at k*
         self.i_max = i_max
         self.closed_form = closed_form
+        self.legacy_input_project = legacy_input_project
         assert self.mass_division in ['uniform', 'distance_based'], \
             "Invalid mass division. Must be one of 'uniform', 'distance_based'"
         
@@ -505,6 +507,30 @@ class Orlicz_TSConcurrentLines:
         num_trees = theta.shape[0]
         num_lines = theta.shape[1]
         
+        if self.legacy_input_project:
+            # Original implementation. This materializes [T, L, N, d] and can
+            # require substantially more memory than the optimized path below.
+            input_translated = input - intercept
+            axis_coordinate = torch.matmul(theta, input_translated.transpose(1, 2))
+            input_projected_translated = torch.einsum(
+                'tlb,tld->tlbd', axis_coordinate, theta
+            )
+
+            if self.mass_division == 'uniform':
+                mass_input = torch.ones(
+                    (num_trees, num_lines, N),
+                    device=self.device,
+                ) / (N * num_lines)
+            else:
+                dist = torch.norm(
+                    input_projected_translated - input_translated.unsqueeze(1),
+                    dim=-1,
+                )
+                weight = -self.delta * dist
+                mass_input = torch.softmax(weight, dim=-2) / N
+
+            return mass_input, axis_coordinate
+
         # Avoid expanding input - intercept to [num_trees, N, d].
         intercept_flat = intercept.squeeze(1)
         

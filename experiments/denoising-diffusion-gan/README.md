@@ -110,6 +110,7 @@ run_one_experiment() {
     TEST_LOG="$3"
     GEN_MODE="$4"
     N_FUNCTION="$5"
+    SEED="$6"
 
     echo "========================================"
     echo "=== START TRAIN: $EXP_NAME ==="
@@ -125,7 +126,7 @@ run_one_experiment() {
     --r1_gamma 0.02 --lr_d 1.25e-4 --lr_g 1.6e-4 --n_function "$N_FUNCTION" \
     --lazy_reg 15 --loss ts_orlicz --T 2500 --L 4 \
     --twd_delta 10 --twd_std 0.1 --twd_gen_mode "$GEN_MODE" --orlicz_p 2 \
-    --ch_mult 1 2 2 2 --p_agg 2 --closed_form --save_content --seed 0 \
+    --ch_mult 1 2 2 2 --p_agg 2 --closed_form --save_content --seed "$SEED" \
     --wandb_project_name "ts-orlicz" --wandb_entity "tuanhaict-" \
     --save_ckpt_every 25 > "$TRAIN_LOG" 2>&1
 
@@ -158,33 +159,21 @@ run_one_experiment() {
     return $TEST_EXIT
 }
 
-# config 1
-run_one_experiment \
-    "ddgan_cifar10_orlicz_exp_squared" \
-    "orlicz_exp_squared.log" \
-    "orlicz_exp_squared_test.log" \
-    "gaussian_raw" \
-    "exp_squared"
+for SEED in 0 1 2; do
+    run_one_experiment \
+        "ddgan_cifar10_orlicz_exp_squared_seed${SEED}" \
+        "orlicz_exp_squared_seed${SEED}.log" \
+        "orlicz_exp_squared_seed${SEED}_test.log" \
+        "gaussian_raw" \
+        "exp_squared" \
+        "$SEED"
 
-EXIT_CODE=$?
-if [ $EXIT_CODE -ne 0 ]; then
-    echo "Pipeline stopped at config 1."
-    exit $EXIT_CODE
-fi
-
-# config 2
-run_one_experiment \
-    "ddgan_cifar10_orlicz_exp" \
-    "orlicz_exp.log" \
-    "orlicz_exp_test.log" \
-    "gaussian_raw" \
-    "exp"
-
-EXIT_CODE=$?
-if [ $EXIT_CODE -ne 0 ]; then
-    echo "Pipeline stopped at config 2."
-    exit $EXIT_CODE
-fi
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -ne 0 ]; then
+        echo "Pipeline stopped at seed $SEED."
+        exit $EXIT_CODE
+    fi
+done
 
 echo "=== ALL EXPERIMENTS FINISHED SUCCESSFULLY ==="
 date
